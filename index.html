@@ -718,7 +718,7 @@
                 <div class="form-section">
                     <div class="form-title">➕ Add New To-Do</div>
                     <div class="form-row" style="flex-direction: column; align-items: stretch;">
-                        <input type="text" id="todoTitle" class="form-input" placeholder="To-Do Title..." style="width: 100%;">
+                        <input type="text" id="todoTitle" class="form-input" placeholder="To-Do Title..." style="width: 100%;" onkeydown="if(event.key==='Enter')addTodo()">
                         <textarea id="todoDescription" class="form-textarea" placeholder="Details (optional)..."></textarea>
                         <div style="display: flex; gap: 12px;">
                             <select id="todoAssignee" class="form-select" style="flex: 0 0 auto;">
@@ -747,7 +747,7 @@
                         <div style="background: rgba(95, 166, 201, 0.1); border: 1px solid rgba(95, 166, 201, 0.2); border-radius: 8px; padding: 12px; margin: 10px 0;">
                             <div style="font-size: 11px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 8px;">Steps to Complete</div>
                             <div id="rockStepsContainer" style="margin-bottom: 10px;"></div>
-                            <input type="text" id="rockStepInput" class="form-input" placeholder="Add a step..." style="width: 100%; margin-bottom: 8px; padding: 8px 12px; font-size: 12px;">
+                            <input type="text" id="rockStepInput" class="form-input" placeholder="Add a step..." style="width: 100%; margin-bottom: 8px; padding: 8px 12px; font-size: 12px;" onkeydown="if(event.key==='Enter')addRockStep()">
                             <button type="button" onclick="addRockStep()" style="width: 100%; padding: 8px; background: rgba(95, 166, 201, 0.3); border: 1px solid rgba(95, 166, 201, 0.5); border-radius: 6px; color: var(--teal-accent); cursor: pointer; font-weight: 600; font-size: 11px; text-transform: uppercase;">+ Add Step</button>
                         </div>
                         <div style="display: flex; gap: 12px;">
@@ -767,7 +767,7 @@
                 <div class="form-section">
                     <div class="form-title">➕ Add New IDS</div>
                     <div class="form-row">
-                        <input type="text" id="idsText" class="form-input" placeholder="Issue..." style="flex: 2;">
+                        <input type="text" id="idsText" class="form-input" placeholder="Issue..." style="flex: 2;" onkeydown="if(event.key==='Enter')addIds()">
                         <select id="idsAssignee" class="form-select">
                             <option>Zac</option><option>Les</option><option>Krystie</option><option>Sammy</option>
                         </select>
@@ -832,7 +832,7 @@
                         <div class="meeting-form">
                             <div class="meeting-form-title">➕ Quick Add Rock</div>
                             <div class="meeting-form-row">
-                                <input type="text" id="quickRockText" class="meeting-form-input" placeholder="Goal?" style="flex: 1;">
+                                <input type="text" id="quickRockText" class="meeting-form-input" placeholder="Goal?" style="flex: 1;" onkeydown="if(event.key==='Enter')quickAddRock()">
                                 <select id="quickRockAssignee" class="meeting-form-select">
                                     <option>Zac</option><option>Les</option><option>Krystie</option><option>Sammy</option>
                                 </select>
@@ -868,7 +868,7 @@
                         <div class="meeting-form">
                             <div class="meeting-form-title">➕ Quick Add To-Do</div>
                             <div class="meeting-form-row">
-                                <input type="text" id="quickTodoText" class="meeting-form-input" placeholder="Task?" style="flex: 1;">
+                                <input type="text" id="quickTodoText" class="meeting-form-input" placeholder="Task?" style="flex: 1;" onkeydown="if(event.key==='Enter')quickAddTodo()">
                                 <select id="quickTodoAssignee" class="meeting-form-select">
                                     <option>Zac</option><option>Les</option><option>Krystie</option><option>Sammy</option>
                                 </select>
@@ -893,7 +893,7 @@
                         <div class="meeting-form">
                             <div class="meeting-form-title">➕ Quick Add IDS</div>
                             <div class="meeting-form-row">
-                                <input type="text" id="quickIdsText" class="meeting-form-input" placeholder="Issue?" style="flex: 1;">
+                                <input type="text" id="quickIdsText" class="meeting-form-input" placeholder="Issue?" style="flex: 1;" onkeydown="if(event.key==='Enter')quickAddIds()">
                                 <select id="quickIdsAssignee" class="meeting-form-select">
                                     <option>Zac</option><option>Les</option><option>Krystie</option><option>Sammy</option>
                                 </select>
@@ -997,6 +997,8 @@
     let slideTimers = {};
     let timerIntervals = {};
     let tempRockSteps = [];
+    let _idCounter = 0;
+    function uniqueId() { return Date.now() + (++_idCounter); }
     const DEFAULT_SHEETS_URL = 'https://script.google.com/macros/s/AKfycbxcWDp8uJ459XohvvFyFDshNDlhixhFcwjFVQjl-SGOnKHP4iI8duW5GwhAS8icoCI/exec';
     let SHEETS_API_URL = localStorage.getItem('sheetsApiUrl') || DEFAULT_SHEETS_URL;
 
@@ -1255,9 +1257,9 @@
     }
 
     function getPriorityColor(priority) {
-        if (priority === 'high') return { bg: 'rgba(255, 107, 107, 0.2)', text: '#FF6B6B', label: '🔴 High' };
-        if (priority === 'medium') return { bg: 'rgba(255, 193, 7, 0.2)', text: '#FFC107', label: '🟡 Medium' };
-        return { bg: 'rgba(76, 175, 80, 0.2)', text: '#4CAF50', label: '🟢 Low' };
+        if (priority === 'high') return { bg: 'rgba(255, 107, 107, 0.2)', text: 'var(--danger)', label: '🔴 High' };
+        if (priority === 'medium') return { bg: 'rgba(255, 193, 7, 0.2)', text: 'var(--warning)', label: '🟡 Medium' };
+        return { bg: 'rgba(76, 175, 80, 0.2)', text: 'var(--success)', label: '🟢 Low' };
     }
 
     function escapeHtml(str) {
@@ -1320,6 +1322,8 @@
         return trend;
     }
 
+    let sessionQuote = null;
+
     // =====================================================
     // AUTH & NAVIGATION
     // =====================================================
@@ -1336,8 +1340,10 @@
 
         // Initial sync from Sheets
         if (SHEETS_API_URL) {
-            pullFromSheets().then(() => renderAllPages());
-            startSyncInterval();
+            pullFromSheets().then(() => {
+                renderAllPages();
+                startSyncInterval();
+            });
         } else {
             renderAllPages();
         }
@@ -1511,7 +1517,7 @@
         if (!title) return;
         
         let todos = JSON.parse(localStorage.getItem('todos') || '[]');
-        todos.push({ id: Date.now(), title, description, assignee, priority, dueDate, completed: false, completedDate: null, archivedDate: null, createdDate: Date.now(), createdBy: currentUser });
+        todos.push({ id: uniqueId(), title, description, assignee, priority, dueDate, completed: false, completedDate: null, archivedDate: null, createdDate: Date.now(), createdBy: currentUser });
         localStorage.setItem('todos', JSON.stringify(todos));
         pushToSheets('todos');
         
@@ -1530,7 +1536,7 @@
         if (!text) return;
         
         let todos = JSON.parse(localStorage.getItem('todos') || '[]');
-        todos.push({ id: Date.now(), title: text, description: '', assignee, priority: 'medium', dueDate, completed: false, completedDate: null, archivedDate: null, createdDate: Date.now(), createdBy: currentUser });
+        todos.push({ id: uniqueId(), title: text, description: '', assignee, priority: 'medium', dueDate, completed: false, completedDate: null, archivedDate: null, createdDate: Date.now(), createdBy: currentUser });
         localStorage.setItem('todos', JSON.stringify(todos));
         pushToSheets('todos');
         
@@ -1750,7 +1756,7 @@
         if (!text) return;
         
         let rocks = JSON.parse(localStorage.getItem('rocks') || '[]');
-        rocks.push({ id: Date.now(), title: text, assignee, progress: 0, dateStarted: new Date().toISOString(), checklist: tempRockSteps.map(s => ({...s})), createdBy: currentUser });
+        rocks.push({ id: uniqueId(), title: text, assignee, progress: 0, dateStarted: new Date().toISOString(), checklist: tempRockSteps.map(s => ({...s})), createdBy: currentUser });
         localStorage.setItem('rocks', JSON.stringify(rocks));
         pushToSheets('rocks');
         
@@ -1768,7 +1774,7 @@
         if (!text) return;
         
         let rocks = JSON.parse(localStorage.getItem('rocks') || '[]');
-        rocks.push({ id: Date.now(), title: text, assignee, progress: 0, dateStarted: new Date().toISOString(), checklist: [], createdBy: currentUser });
+        rocks.push({ id: uniqueId(), title: text, assignee, progress: 0, dateStarted: new Date().toISOString(), checklist: [], createdBy: currentUser });
         localStorage.setItem('rocks', JSON.stringify(rocks));
         pushToSheets('rocks');
         
@@ -1987,7 +1993,7 @@
         if (!text) return;
         
         let ids = JSON.parse(localStorage.getItem('ids') || '[]');
-        ids.push({ id: Date.now(), title: text, assignee, status: 'Identified', createdDate: Date.now(), closedDate: null, createdBy: currentUser });
+        ids.push({ id: uniqueId(), title: text, assignee, status: 'Identified', createdDate: Date.now(), closedDate: null, createdBy: currentUser });
         localStorage.setItem('ids', JSON.stringify(ids));
         pushToSheets('ids');
         
@@ -2003,7 +2009,7 @@
         if (!text) return;
         
         let ids = JSON.parse(localStorage.getItem('ids') || '[]');
-        ids.push({ id: Date.now(), title: text, assignee, dueDate, status: 'Identified', createdDate: Date.now(), closedDate: null, createdBy: currentUser });
+        ids.push({ id: uniqueId(), title: text, assignee, dueDate, status: 'Identified', createdDate: Date.now(), closedDate: null, createdBy: currentUser });
         localStorage.setItem('ids', JSON.stringify(ids));
         pushToSheets('ids');
         
@@ -2170,9 +2176,9 @@
             ? '<li>No open issues</li>'
             : myIds.map(i => `<li><strong>${escapeHtml(i.title)}</strong><br><small>${i.status}</small></li>`).join('');
 
-        const quote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
-        document.getElementById('quoteText').textContent = `"${quote.text}"`;
-        document.getElementById('quoteAuthor').textContent = `- ${quote.author}`;
+        if (!sessionQuote) sessionQuote = QUOTES[Math.floor(Math.random() * QUOTES.length)];
+        document.getElementById('quoteText').textContent = `"${sessionQuote.text}"`;
+        document.getElementById('quoteAuthor').textContent = `- ${sessionQuote.author}`;
     }
 
     // =====================================================
@@ -2180,9 +2186,10 @@
     // =====================================================
     function renderAllPages() {
         renderDashboard();
-        // Skip scorecard re-render if user is actively editing (grid is visible)
+        // Skip scorecard re-render if user is actively editing (grid is visible and has inputs)
         const scorecardGrid = document.getElementById('scorecardGrid');
-        if (!scorecardGrid || scorecardGrid.style.display === 'none') {
+        const isEditing = scorecardGrid && scorecardGrid.style.display !== 'none' && scorecardGrid.querySelector('.kpi-input');
+        if (!isEditing) {
             renderScorecard();
         }
         renderTodos();
@@ -2221,16 +2228,20 @@
 
     function updateTimer(slideIndex) {
         if (slideTimers[slideIndex] === undefined) return;
-        const mins = Math.floor(slideTimers[slideIndex] / 60);
-        const secs = slideTimers[slideIndex] % 60;
+        const mins = Math.floor(Math.abs(slideTimers[slideIndex]) / 60);
+        const secs = Math.abs(slideTimers[slideIndex]) % 60;
         const timerEl = document.getElementById(`timer${slideIndex + 1}`);
         if (timerEl) {
-            timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            if (slideTimers[slideIndex] < 0) {
+                timerEl.textContent = `-${mins}:${secs.toString().padStart(2, '0')}`;
+            } else {
+                timerEl.textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
             timerEl.classList.remove('warning', 'danger');
             if (slideTimers[slideIndex] <= 0) timerEl.classList.add('danger');
             else if (slideTimers[slideIndex] <= 60) timerEl.classList.add('warning');
         }
-        if (slideTimers[slideIndex] > 0) slideTimers[slideIndex]--;
+        slideTimers[slideIndex]--;
     }
 
     function stopAllTimers() {
@@ -2344,7 +2355,7 @@
         const sammy = parseFloat(document.getElementById('ratingSammy').value);
         const avg = ((zac + les + krystie + sammy) / 4).toFixed(1);
         
-        const meetingData = { id: Date.now(), date: new Date().toLocaleString(), zac, les, krystie, sammy, averageRating: avg, submittedBy: currentUser };
+        const meetingData = { id: uniqueId(), date: new Date().toLocaleString(), zac, les, krystie, sammy, averageRating: avg, submittedBy: currentUser };
         
         history.push(meetingData);
         localStorage.setItem('meetingHistory', JSON.stringify(history));
@@ -2374,7 +2385,6 @@
         pushToSheets('meeting');
     }
 
-    // FIX: resetMeeting now calls showPage properly (no event.target dependency)
     // =====================================================
     // TRENDS
     // =====================================================
@@ -2630,6 +2640,8 @@
     }
 
     function resetMeeting() {
+        stopAllTimers();
+        currentSlideIndex = 0;
         document.getElementById('ratingZac').value = 0;
         document.getElementById('ratingLes').value = 0;
         document.getElementById('ratingKrystie').value = 0;
@@ -2638,9 +2650,10 @@
         updateRating('Les');
         updateRating('Krystie');
         updateRating('Sammy');
+        document.getElementById('slideshow').classList.remove('active');
         document.getElementById('congrats').classList.remove('active');
         document.getElementById('meetingStart').style.display = 'flex';
-        showPage('dashboard'); // Works now because showPage has fallback for null clickedLink
+        showPage('dashboard');
     }
 
     // =====================================================
@@ -2775,10 +2788,9 @@
     // INITIALIZATION
     // =====================================================
     window.onload = () => {
-        // Check for saved API URL
+        // Set initial sync status (don't start interval yet — handleLogin will do that)
         if (SHEETS_API_URL) {
             updateSyncStatus('offline');
-            startSyncInterval();
         }
         
         // Auto-login if session exists
