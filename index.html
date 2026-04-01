@@ -766,12 +766,16 @@
                 <h1 class="page-title">Identify, Discuss & Solve 💡</h1>
                 <div class="form-section">
                     <div class="form-title">➕ Add New IDS</div>
-                    <div class="form-row">
-                        <input type="text" id="idsText" class="form-input" placeholder="Issue..." style="flex: 2;" onkeydown="if(event.key==='Enter')addIds()">
-                        <select id="idsAssignee" class="form-select">
-                            <option>Zac</option><option>Les</option><option>Krystie</option><option>Sammy</option>
-                        </select>
-                        <button class="btn-primary" onclick="addIds()">Add</button>
+                    <div class="form-row" style="flex-direction: column; align-items: stretch;">
+                        <input type="text" id="idsText" class="form-input" placeholder="Issue..." style="width: 100%;" onkeydown="if(event.key==='Enter')addIds()">
+                        <textarea id="idsDescription" class="form-textarea" placeholder="Details (optional)..."></textarea>
+                        <div style="display: flex; gap: 12px;">
+                            <select id="idsAssignee" class="form-select" style="flex: 0 0 auto;">
+                                <option>Zac</option><option>Les</option><option>Krystie</option><option>Sammy</option>
+                            </select>
+                            <input type="date" id="idsDueDate" class="form-input" style="flex: 0 0 auto;">
+                            <button class="btn-primary" onclick="addIds()" style="flex: 0 0 auto;">Add</button>
+                        </div>
                     </div>
                 </div>
                 <div id="idsList"></div>
@@ -874,6 +878,9 @@
                                 </select>
                                 <input type="date" id="quickTodoDueDate" class="meeting-form-input">
                                 <button class="meeting-form-btn" onclick="quickAddTodo()">Add</button>
+                            </div>
+                            <div style="margin-top: 6px;">
+                                <input type="text" id="quickTodoDescription" class="meeting-form-input" placeholder="Details (optional)..." style="width: 100%;">
                             </div>
                         </div>
                         </div>
@@ -1535,15 +1542,17 @@
         const text = document.getElementById('quickTodoText').value.trim();
         const assignee = document.getElementById('quickTodoAssignee').value;
         const dueDate = document.getElementById('quickTodoDueDate').value;
+        const description = document.getElementById('quickTodoDescription').value.trim();
         if (!text) return;
         
         let todos = JSON.parse(localStorage.getItem('todos') || '[]');
-        todos.push({ id: uniqueId(), title: text, description: '', assignee, priority: 'medium', dueDate, completed: false, completedDate: null, archivedDate: null, createdDate: Date.now(), createdBy: currentUser });
+        todos.push({ id: uniqueId(), title: text, description, assignee, priority: 'medium', dueDate, completed: false, completedDate: null, archivedDate: null, createdDate: Date.now(), createdBy: currentUser });
         localStorage.setItem('todos', JSON.stringify(todos));
         pushToSheets('todos');
         
         document.getElementById('quickTodoText').value = '';
         document.getElementById('quickTodoDueDate').value = '';
+        document.getElementById('quickTodoDescription').value = '';
         renderMeetingTodos();
         renderTodos();
     }
@@ -1991,15 +2000,19 @@
     // =====================================================
     function addIds() {
         const text = document.getElementById('idsText').value.trim();
+        const description = document.getElementById('idsDescription').value.trim();
         const assignee = document.getElementById('idsAssignee').value;
+        const dueDate = document.getElementById('idsDueDate').value;
         if (!text) return;
         
         let ids = JSON.parse(localStorage.getItem('ids') || '[]');
-        ids.push({ id: uniqueId(), title: text, assignee, status: 'Identified', createdDate: Date.now(), closedDate: null, createdBy: currentUser });
+        ids.push({ id: uniqueId(), title: text, description, assignee, dueDate, status: 'Identified', createdDate: Date.now(), closedDate: null, createdBy: currentUser, checklist: [] });
         localStorage.setItem('ids', JSON.stringify(ids));
         pushToSheets('ids');
         
         document.getElementById('idsText').value = '';
+        document.getElementById('idsDescription').value = '';
+        document.getElementById('idsDueDate').value = '';
         renderIds();
         renderDashboard();
     }
@@ -2011,7 +2024,7 @@
         if (!text) return;
         
         let ids = JSON.parse(localStorage.getItem('ids') || '[]');
-        ids.push({ id: uniqueId(), title: text, assignee, dueDate, status: 'Identified', createdDate: Date.now(), closedDate: null, createdBy: currentUser });
+        ids.push({ id: uniqueId(), title: text, assignee, dueDate, status: 'Identified', createdDate: Date.now(), closedDate: null, createdBy: currentUser, checklist: [] });
         localStorage.setItem('ids', JSON.stringify(ids));
         pushToSheets('ids');
         
@@ -2031,22 +2044,52 @@
             html = '<div class="empty-state">No open IDS items</div>';
         } else {
             open.forEach(item => {
+                const checklist = item.checklist || [];
+                const checkDone = checklist.filter(c => c.completed).length;
+                const checkTotal = checklist.length;
                 html += `<div class="item-card" id="ids-card-${item.id}">
-                    <div class="item-info" id="ids-view-${item.id}">
-                        <div class="item-title">${escapeHtml(item.title)}</div>
-                        <div class="item-meta">${item.assignee} • ${item.status}${item.dueDate ? ' • ' + item.dueDate : ''}</div>
-                    </div>
-                    <div id="ids-edit-${item.id}" style="display:none; flex:1;">
-                        <div style="display:flex; flex-direction:column; gap:8px;">
-                            <input type="text" id="idsEditTitle_${item.id}" value="${escapeHtml(item.title)}" class="theme-input-bg" style="padding:8px 12px; border:1px solid rgba(95,166,201,0.3); border-radius:6px; color:var(--text-light); font-size:13px; width:100%;">
-                            <div style="display:flex; gap:8px; flex-wrap:wrap;">
-                                <select id="idsEditAssignee_${item.id}" class="theme-input-bg" style="padding:6px 10px; border:1px solid rgba(95,166,201,0.3); border-radius:6px; color:var(--text-light); font-size:12px;">
-                                    ${['Zac','Les','Krystie','Sammy'].map(n => `<option ${item.assignee === n ? 'selected' : ''}>${n}</option>`).join('')}
-                                </select>
-                                <input type="date" id="idsEditDueDate_${item.id}" value="${item.dueDate || ''}" class="theme-input-bg" style="padding:6px 10px; border:1px solid rgba(95,166,201,0.3); border-radius:6px; color:var(--text-light); font-size:12px;">
-                                <button onclick="saveIdsEdit(${item.id})" style="padding:6px 14px; background:var(--success); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:11px;">Save</button>
-                                <button onclick="cancelIdsEdit(${item.id})" style="padding:6px 14px; background:rgba(255,107,107,0.2); color:var(--danger); border:1px solid var(--danger); border-radius:6px; cursor:pointer; font-weight:600; font-size:11px;">Cancel</button>
+                    <div class="item-info" style="flex:1;">
+                        <div id="ids-view-${item.id}">
+                            <div class="item-title">${escapeHtml(item.title)}</div>
+                            ${item.description ? `<div class="item-description">${escapeHtml(item.description)}</div>` : ''}
+                            <div class="item-meta">${item.assignee} • ${item.status}${item.dueDate ? ' • ' + item.dueDate : ''}${checkTotal > 0 ? ` • ${checkDone}/${checkTotal} steps` : ''}</div>
+                        </div>
+                        <div id="ids-edit-${item.id}" style="display:none;">
+                            <div style="display:flex; flex-direction:column; gap:8px;">
+                                <input type="text" id="idsEditTitle_${item.id}" value="${escapeHtml(item.title)}" class="theme-input-bg" style="padding:8px 12px; border:1px solid rgba(95,166,201,0.3); border-radius:6px; color:var(--text-light); font-size:13px; width:100%;">
+                                <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                                    <select id="idsEditAssignee_${item.id}" class="theme-input-bg" style="padding:6px 10px; border:1px solid rgba(95,166,201,0.3); border-radius:6px; color:var(--text-light); font-size:12px;">
+                                        ${['Zac','Les','Krystie','Sammy'].map(n => `<option ${item.assignee === n ? 'selected' : ''}>${n}</option>`).join('')}
+                                    </select>
+                                    <input type="date" id="idsEditDueDate_${item.id}" value="${item.dueDate || ''}" class="theme-input-bg" style="padding:6px 10px; border:1px solid rgba(95,166,201,0.3); border-radius:6px; color:var(--text-light); font-size:12px;">
+                                    <button onclick="saveIdsEdit(${item.id})" style="padding:6px 14px; background:var(--success); color:white; border:none; border-radius:6px; cursor:pointer; font-weight:600; font-size:11px;">Save</button>
+                                    <button onclick="cancelIdsEdit(${item.id})" style="padding:6px 14px; background:rgba(255,107,107,0.2); color:var(--danger); border:1px solid var(--danger); border-radius:6px; cursor:pointer; font-weight:600; font-size:11px;">Cancel</button>
+                                </div>
                             </div>
+                        </div>
+                        ${checklist.length > 0 ? `
+                            <div class="checklist" style="margin-top: 12px;">
+                                <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 8px;">Steps (${checkDone}/${checkTotal})</div>
+                                ${checklist.map((step, idx) => `
+                                    <div class="checklist-item" id="ids-step-view-${item.id}-${idx}" style="display:flex; align-items:center; gap:8px;">
+                                        <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleIdsChecklist(${item.id}, ${idx})">
+                                        <span style="text-decoration: ${step.completed ? 'line-through' : 'none'}; color: ${step.completed ? 'var(--text-muted)' : 'var(--text-light)'}; flex:1;">${escapeHtml(step.text)}</span>
+                                        <button onclick="startIdsStepEdit(${item.id}, ${idx})" style="background:none; border:none; color:var(--teal-accent); cursor:pointer; font-size:12px; padding:2px 6px; opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">✏️</button>
+                                        <button onclick="deleteIdsStep(${item.id}, ${idx})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:14px; padding:0; min-width:auto; opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">×</button>
+                                    </div>
+                                    <div id="ids-step-edit-${item.id}-${idx}" style="display:none; margin:4px 0 4px 28px;">
+                                        <div style="display:flex; gap:6px; align-items:center;">
+                                            <input type="text" id="idsStepEditInput_${item.id}_${idx}" value="${escapeHtml(step.text)}" class="theme-input-bg" style="padding:6px 10px; border:1px solid rgba(95,166,201,0.3); border-radius:4px; color:var(--text-light); flex:1; font-size:12px;">
+                                            <button onclick="saveIdsStepEdit(${item.id}, ${idx})" style="padding:4px 10px; background:var(--success); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-size:10px;">Save</button>
+                                            <button onclick="cancelIdsStepEdit(${item.id}, ${idx})" style="padding:4px 10px; background:rgba(255,107,107,0.2); color:var(--danger); border:1px solid var(--danger); border-radius:4px; cursor:pointer; font-weight:600; font-size:10px;">Cancel</button>
+                                        </div>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                        <div style="display: flex; gap: 8px; margin-top: 10px;">
+                            <input type="text" id="idsChecklistInput_${item.id}" placeholder="Add step..." class="theme-input-bg" style="padding: 6px 10px; border: 1px solid rgba(95, 166, 201, 0.3); border-radius: 4px; color: var(--text-light); flex: 1; font-size: 11px;" onkeydown="if(event.key==='Enter')addIdsChecklist(${item.id})">
+                            <button onclick="addIdsChecklist(${item.id})" style="padding: 6px 12px; background: var(--teal-accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 10px;">Add</button>
                         </div>
                     </div>
                     <div class="item-actions" id="ids-actions-${item.id}">
@@ -2143,6 +2186,56 @@
         pushToSheets('ids');
         renderIds();
         renderDashboard();
+    }
+
+    // IDS CHECKLIST FUNCTIONS
+    function addIdsChecklist(idsId) {
+        const input = document.getElementById(`idsChecklistInput_${idsId}`);
+        const text = input.value.trim();
+        if (!text) return;
+        let ids = JSON.parse(localStorage.getItem('ids') || '[]');
+        ids = ids.map(i => { if (i.id === idsId) { if (!i.checklist) i.checklist = []; i.checklist.push({ text, completed: false }); } return i; });
+        localStorage.setItem('ids', JSON.stringify(ids));
+        pushToSheets('ids');
+        renderIds();
+    }
+
+    function toggleIdsChecklist(idsId, idx) {
+        let ids = JSON.parse(localStorage.getItem('ids') || '[]');
+        ids = ids.map(i => { if (i.id === idsId && i.checklist && i.checklist[idx]) { i.checklist[idx].completed = !i.checklist[idx].completed; } return i; });
+        localStorage.setItem('ids', JSON.stringify(ids));
+        pushToSheets('ids');
+        renderIds();
+    }
+
+    function deleteIdsStep(idsId, idx) {
+        if (!confirm('Delete this step?')) return;
+        let ids = JSON.parse(localStorage.getItem('ids') || '[]');
+        ids = ids.map(i => { if (i.id === idsId && i.checklist) { i.checklist.splice(idx, 1); } return i; });
+        localStorage.setItem('ids', JSON.stringify(ids));
+        pushToSheets('ids');
+        renderIds();
+    }
+
+    function startIdsStepEdit(idsId, idx) {
+        document.getElementById(`ids-step-view-${idsId}-${idx}`).style.display = 'none';
+        document.getElementById(`ids-step-edit-${idsId}-${idx}`).style.display = 'block';
+        document.getElementById(`idsStepEditInput_${idsId}_${idx}`).focus();
+    }
+
+    function cancelIdsStepEdit(idsId, idx) {
+        document.getElementById(`ids-step-view-${idsId}-${idx}`).style.display = '';
+        document.getElementById(`ids-step-edit-${idsId}-${idx}`).style.display = 'none';
+    }
+
+    function saveIdsStepEdit(idsId, idx) {
+        const text = document.getElementById(`idsStepEditInput_${idsId}_${idx}`).value.trim();
+        if (!text) return;
+        let ids = JSON.parse(localStorage.getItem('ids') || '[]');
+        ids = ids.map(i => { if (i.id === idsId && i.checklist && i.checklist[idx]) { i.checklist[idx].text = text; } return i; });
+        localStorage.setItem('ids', JSON.stringify(ids));
+        pushToSheets('ids');
+        renderIds();
     }
 
     // =====================================================
@@ -2319,7 +2412,8 @@
         const todos = JSON.parse(localStorage.getItem('todos') || '[]').filter(t => !t.archivedDate);
         let html = '';
         todos.forEach(todo => {
-            html += `<div class="meeting-item"><div class="meeting-item-title">${escapeHtml(todo.title)}</div><div class="meeting-item-meta">${todo.assignee} • ${todo.completed ? '✓' : '○'}</div></div>`;
+            const calLink = todo.dueDate ? ` <a href="#" onclick="calendarFromTodo(${todo.id}); return false;" style="color: var(--teal-accent); text-decoration: none; cursor: pointer;">📅</a>` : '';
+            html += `<div class="meeting-item"><div class="meeting-item-title">${escapeHtml(todo.title)}</div><div class="meeting-item-meta">${todo.assignee} • ${todo.completed ? '✓' : '○'}${todo.dueDate ? ' • ' + todo.dueDate : ''}${calLink}</div></div>`;
         });
         document.getElementById('meetingTodos').innerHTML = html || '<div class="meeting-item">No to-dos</div>';
     }
@@ -2385,6 +2479,101 @@
         
         // Sync to Sheets
         pushToSheets('meeting');
+
+        // Send meeting recap email to team
+        sendMeetingRecap(meetingData, avg, trend);
+    }
+
+    async function sendMeetingRecap(meetingData, avg, trend) {
+        if (!SHEETS_API_URL) return;
+        const todos = JSON.parse(localStorage.getItem('todos') || '[]');
+        const rocks = JSON.parse(localStorage.getItem('rocks') || '[]');
+        const ids = JSON.parse(localStorage.getItem('ids') || '[]');
+        const weekNum = getWeekNumber(new Date());
+        const year = new Date().getFullYear();
+        const weekKey = `scorecard_${year}_week${weekNum}`;
+        const scorecardData = JSON.parse(localStorage.getItem(weekKey) || '{}');
+
+        // Build scorecard summary
+        let scorecardRows = '';
+        Object.entries(KPI_BUNDLES).forEach(([bundle, kpis]) => {
+            Object.entries(kpis).forEach(([kpi, [target, isCurrency, type]]) => {
+                const val = parseFloat(scorecardData[kpi] || 0);
+                const display = isCurrency ? formatCurrency(val) : val;
+                const targetDisplay = isCurrency ? formatCurrency(target) : target;
+                const status = getKPIStatus(val, target, type, isCurrency);
+                const statusEmoji = status.percent >= 100 ? '🟢' : status.percent >= 66 ? '🟡' : '🔴';
+                scorecardRows += `<tr><td style="padding:8px 12px;border-bottom:1px solid #eee;">${statusEmoji} ${kpi}</td><td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;">${display}</td><td style="padding:8px 12px;border-bottom:1px solid #eee;text-align:right;color:#999;">${targetDisplay}</td></tr>`;
+            });
+        });
+
+        // Build todo summary
+        const activeTodos = todos.filter(t => !t.archivedDate && !t.completed);
+        const completedThisWeek = todos.filter(t => t.completed && t.completedDate && (Date.now() - t.completedDate < 7 * 24 * 60 * 60 * 1000));
+        let todoRows = activeTodos.map(t => `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;">○ ${t.title}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;">${t.assignee}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;">${t.dueDate || '-'}</td></tr>`).join('');
+        let completedRows = completedThisWeek.map(t => `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;text-decoration:line-through;color:#999;">✓ ${t.title}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;color:#999;">${t.assignee}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;color:#999;">Done</td></tr>`).join('');
+
+        // Build rocks summary
+        const activeRocks = rocks.filter(r => r.progress < 100);
+        let rockRows = activeRocks.map(r => {
+            const daysLeft = getDaysRemaining(r.dateStarted);
+            const label = getStatusLabel(daysLeft);
+            const emoji = daysLeft <= 30 ? '🔴' : daysLeft <= 60 ? '🟡' : '🟢';
+            return `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;">${emoji} ${r.title}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;">${r.assignee}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;">${r.progress}%</td><td style="padding:6px 12px;border-bottom:1px solid #eee;">${label}</td></tr>`;
+        }).join('');
+
+        // Build IDS summary
+        const openIds = ids.filter(i => i.status !== 'Solved');
+        let idsRows = openIds.map(i => `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;">${i.title}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;">${i.assignee}</td><td style="padding:6px 12px;border-bottom:1px solid #eee;">${i.status}</td></tr>`).join('');
+
+        const trendEmoji = trend === '↑' ? '📈' : trend === '↓' ? '📉' : '➡️';
+        const dateStr = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' });
+
+        const recapHtml = `
+        <div style="font-family:'Segoe UI',Tahoma,Geneva,Verdana,sans-serif;max-width:650px;margin:0 auto;background:#fff;">
+            <div style="background:linear-gradient(135deg,#3D6984,#5FA6C9);padding:30px;text-align:center;border-radius:12px 12px 0 0;">
+                <h1 style="color:#fff;margin:0;font-size:24px;">North Shore Masonry</h1>
+                <p style="color:rgba(255,255,255,0.85);margin:8px 0 0;font-size:14px;">EOS Level 10 Meeting Recap</p>
+                <p style="color:rgba(255,255,255,0.7);margin:6px 0 0;font-size:12px;">${dateStr}</p>
+            </div>
+            <div style="padding:24px;border:1px solid #e5e5e5;border-top:none;border-radius:0 0 12px 12px;">
+                <div style="text-align:center;padding:16px;background:#f8f9fa;border-radius:8px;margin-bottom:24px;">
+                    <span style="font-size:36px;font-weight:700;color:#3D6984;">${avg}/10</span>
+                    <span style="font-size:20px;margin-left:8px;">${trendEmoji}</span>
+                    <div style="font-size:12px;color:#999;margin-top:4px;">Meeting Rating (Zac: ${meetingData.zac} · Les: ${meetingData.les} · Krystie: ${meetingData.krystie} · Sammy: ${meetingData.sammy})</div>
+                </div>
+                <h2 style="color:#3D6984;font-size:16px;border-bottom:2px solid #5FA6C9;padding-bottom:8px;">📊 Scorecard Snapshot</h2>
+                <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;">
+                    <tr style="background:#f8f9fa;"><th style="padding:8px 12px;text-align:left;">KPI</th><th style="padding:8px 12px;text-align:right;">Actual</th><th style="padding:8px 12px;text-align:right;">Target</th></tr>
+                    ${scorecardRows}
+                </table>
+                <h2 style="color:#3D6984;font-size:16px;border-bottom:2px solid #5FA6C9;padding-bottom:8px;">✅ To-Dos (${activeTodos.length} active, ${completedThisWeek.length} completed this week)</h2>
+                <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;">
+                    <tr style="background:#f8f9fa;"><th style="padding:6px 12px;text-align:left;">Task</th><th style="padding:6px 12px;">Owner</th><th style="padding:6px 12px;">Due</th></tr>
+                    ${todoRows}${completedRows}
+                </table>
+                <h2 style="color:#3D6984;font-size:16px;border-bottom:2px solid #5FA6C9;padding-bottom:8px;">🏔️ Big Rocks (${activeRocks.length} active)</h2>
+                <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;">
+                    <tr style="background:#f8f9fa;"><th style="padding:6px 12px;text-align:left;">Rock</th><th style="padding:6px 12px;">Owner</th><th style="padding:6px 12px;">Progress</th><th style="padding:6px 12px;">Timeline</th></tr>
+                    ${rockRows || '<tr><td colspan="4" style="padding:8px;color:#999;">No active rocks</td></tr>'}
+                </table>
+                <h2 style="color:#3D6984;font-size:16px;border-bottom:2px solid #5FA6C9;padding-bottom:8px;">💡 Open IDS (${openIds.length})</h2>
+                <table style="width:100%;border-collapse:collapse;margin-bottom:24px;font-size:13px;">
+                    <tr style="background:#f8f9fa;"><th style="padding:6px 12px;text-align:left;">Issue</th><th style="padding:6px 12px;">Owner</th><th style="padding:6px 12px;">Status</th></tr>
+                    ${idsRows || '<tr><td colspan="3" style="padding:8px;color:#999;">No open issues 🎉</td></tr>'}
+                </table>
+                <div style="text-align:center;padding:16px;background:#f8f9fa;border-radius:8px;margin-top:24px;">
+                    <div style="font-size:18px;font-weight:700;color:#3D6984;">#BrickByBrick 🧱</div>
+                    <div style="font-size:11px;color:#999;margin-top:6px;">Generated by North Shore EOS Level 10 Hub</div>
+                </div>
+            </div>
+        </div>`;
+
+        try {
+            await sheetsAPI('sendRecap', { subject: `Level 10 Recap — Week ${weekNum} — Rating: ${avg}/10 ${trendEmoji}`, html: recapHtml });
+        } catch(err) {
+            console.error('Recap email failed:', err);
+        }
     }
 
     // =====================================================
