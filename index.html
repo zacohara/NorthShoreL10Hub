@@ -2297,12 +2297,30 @@
             const timelinePercent = ((90 - daysLeft) / 90) * 100;
             const statusColor = getStatusColor(daysLeft);
             const statusLabel = getStatusLabel(daysLeft);
-            html += `<div class="meeting-item">
-                <div class="meeting-item-title">${escapeHtml(rock.title)}</div>
-                <div class="meeting-item-meta">${rock.assignee} • ${rock.progress}% • <span style="color: ${statusColor}; font-weight: 700;">${statusLabel}</span></div>
-                <div style="height: 6px; background: rgba(95, 166, 201, 0.2); border-radius: 3px; overflow: hidden; margin-top: 6px;">
+            const checklist = rock.checklist || [];
+            const checkDone = checklist.filter(c => c.completed).length;
+            const checkTotal = checklist.length;
+            html += `<div class="meeting-item" style="padding: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div>
+                        <div class="meeting-item-title" style="font-size: 14px;">${escapeHtml(rock.title)}</div>
+                        <div class="meeting-item-meta">${rock.assignee} • ${rock.progress}% • <span style="color: ${statusColor}; font-weight: 700;">${statusLabel}</span></div>
+                    </div>
+                    ${checkTotal > 0 ? `<div style="font-size: 11px; color: var(--teal-accent); font-weight: 700; white-space: nowrap;">${checkDone}/${checkTotal} steps</div>` : ''}
+                </div>
+                <div style="height: 6px; background: rgba(95, 166, 201, 0.2); border-radius: 3px; overflow: hidden; margin-top: 8px;">
                     <div style="height: 100%; background: linear-gradient(90deg, var(--success), var(--warning), var(--danger)); width: ${timelinePercent}%;"></div>
                 </div>
+                ${checklist.length > 0 ? `
+                    <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(95,166,201,0.1);">
+                        ${checklist.map((item, idx) => `
+                            <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px;">
+                                <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="toggleRockChecklist(${rock.id}, ${idx}); renderMeetingRocks();" style="cursor: pointer;">
+                                <span style="color: ${item.completed ? 'var(--text-muted)' : 'var(--text-light)'}; text-decoration: ${item.completed ? 'line-through' : 'none'}; flex: 1;">${escapeHtml(item.text)}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
             </div>`;
         });
         document.getElementById('meetingRocks').innerHTML = html || '<div class="meeting-item">No rocks</div>';
@@ -2310,10 +2328,33 @@
 
     function renderMeetingTodos() {
         const todos = JSON.parse(localStorage.getItem('todos') || '[]').filter(t => !t.archivedDate);
+        const incomplete = todos.filter(t => !t.completed);
+        const completed = todos.filter(t => t.completed);
         let html = '';
-        todos.forEach(todo => {
-            html += `<div class="meeting-item"><div class="meeting-item-title">${escapeHtml(todo.title)}</div><div class="meeting-item-meta">${todo.assignee} • ${todo.completed ? '✓' : '○'}</div></div>`;
-        });
+        if (incomplete.length > 0) {
+            incomplete.forEach(todo => {
+                const priority = getPriorityColor(todo.priority || 'medium');
+                html += `<div class="meeting-item" style="padding: 14px;">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <div class="meeting-item-title" style="font-size: 14px;">${escapeHtml(todo.title)}</div>
+                            ${todo.description ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">${escapeHtml(todo.description)}</div>` : ''}
+                            <div class="meeting-item-meta" style="margin-top: 6px;">
+                                ${todo.assignee}${todo.dueDate ? ' • 📅 ' + todo.dueDate : ''}
+                                <span style="background: ${priority.bg}; color: ${priority.text}; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 8px;">${priority.label}</span>
+                            </div>
+                        </div>
+                        <button onclick="completeTodo(${todo.id}); renderMeetingTodos();" style="padding: 6px 12px; background: rgba(76,175,80,0.2); border: 1px solid var(--success); color: var(--success); border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; white-space: nowrap; margin-left: 12px;">✓ Done</button>
+                    </div>
+                </div>`;
+            });
+        }
+        if (completed.length > 0) {
+            html += `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(95,166,201,0.15);">
+                <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 8px;">✓ Completed (${completed.length})</div>
+                ${completed.map(todo => `<div style="font-size: 12px; color: var(--text-muted); padding: 4px 0; text-decoration: line-through;">${escapeHtml(todo.title)} — ${todo.assignee}</div>`).join('')}
+            </div>`;
+        }
         document.getElementById('meetingTodos').innerHTML = html || '<div class="meeting-item">No to-dos</div>';
     }
 
@@ -2322,7 +2363,23 @@
         const open = ids.filter(i => i.status !== 'Solved');
         let html = '';
         open.forEach(item => {
-            html += `<div class="meeting-item"><div class="meeting-item-title">${escapeHtml(item.title)}</div><div class="meeting-item-meta">${item.assignee} • ${item.status}</div></div>`;
+            const statusColors = { 'Identified': 'var(--danger)', 'Discussing': 'var(--warning)' };
+            const statusColor = statusColors[item.status] || 'var(--text-muted)';
+            html += `<div class="meeting-item" style="padding: 14px;">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                    <div style="flex: 1;">
+                        <div class="meeting-item-title" style="font-size: 14px;">${escapeHtml(item.title)}</div>
+                        <div class="meeting-item-meta" style="margin-top: 4px;">
+                            ${item.assignee} • <span style="color: ${statusColor}; font-weight: 700;">${item.status}</span>${item.dueDate ? ' • 📅 ' + item.dueDate : ''}
+                        </div>
+                    </div>
+                    <select onchange="updateIds(${item.id}, this.value); renderMeetingIds();" style="padding: 5px 10px; border-radius: 5px; border: 1px solid var(--teal-accent); background: var(--card-bg); color: var(--text-light); cursor: pointer; font-size: 11px;">
+                        <option value="Identified" ${item.status === 'Identified' ? 'selected' : ''}>Identified</option>
+                        <option value="Discussing" ${item.status === 'Discussing' ? 'selected' : ''}>Discussing</option>
+                        <option value="Solved" ${item.status === 'Solved' ? 'selected' : ''}>Solved</option>
+                    </select>
+                </div>
+            </div>`;
         });
         document.getElementById('meetingIds').innerHTML = html || '<div class="meeting-item">No open IDS items 🎉</div>';
     }
