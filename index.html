@@ -1139,8 +1139,10 @@
         if (syncInterval) clearInterval(syncInterval);
         if (SHEETS_API_URL) {
             syncInterval = setInterval(async () => {
+                // Only pull data silently — do NOT re-render pages
+                // Re-rendering wipes form inputs the user is typing in
+                // Pages re-render naturally when user navigates via showPage()
                 await pullFromSheets();
-                if (currentUser) renderAllPages();
             }, 30000); // Sync every 30 seconds
         }
     }
