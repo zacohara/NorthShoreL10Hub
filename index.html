@@ -2189,8 +2189,9 @@
     }
 
     // IDS CHECKLIST FUNCTIONS
-    function addIdsChecklist(idsId) {
-        const input = document.getElementById(`idsChecklistInput_${idsId}`);
+    function addIdsChecklist(idsId, inputPrefix) {
+        const prefix = inputPrefix || 'idsChecklistInput_';
+        const input = document.getElementById(prefix + idsId);
         const text = input.value.trim();
         if (!text) return;
         let ids = JSON.parse(localStorage.getItem('ids') || '[]');
@@ -2397,24 +2398,61 @@
             const timelinePercent = ((90 - daysLeft) / 90) * 100;
             const statusColor = getStatusColor(daysLeft);
             const statusLabel = getStatusLabel(daysLeft);
-            html += `<div class="meeting-item">
-                <div class="meeting-item-title">${escapeHtml(rock.title)}</div>
-                <div class="meeting-item-meta">${rock.assignee} • ${rock.progress}% • <span style="color: ${statusColor}; font-weight: 700;">${statusLabel}</span></div>
-                <div style="height: 6px; background: rgba(95, 166, 201, 0.2); border-radius: 3px; overflow: hidden; margin-top: 6px;">
-                    <div style="height: 100%; background: linear-gradient(90deg, var(--success), var(--warning), var(--danger)); width: ${timelinePercent}%;"></div>
+            const checklist = rock.checklist || [];
+            const checkDone = checklist.filter(c => c.completed).length;
+            html += `<div class="meeting-item" style="text-align:left;">
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div class="meeting-item-title">${escapeHtml(rock.title)}</div>
+                    <button onclick="deleteRock(${rock.id})" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:12px;opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">×</button>
                 </div>
+                <div class="meeting-item-meta">${rock.assignee} • ${rock.progress}% • <span style="color:${statusColor};font-weight:700;">${statusLabel}</span></div>
+                <div style="display:flex;align-items:center;gap:8px;margin-top:8px;">
+                    <input type="range" min="0" max="100" value="${rock.progress}" onchange="updateRock(${rock.id}, this.value);renderMeetingRocks();" style="flex:1;cursor:pointer;">
+                    <span style="font-size:11px;color:var(--text-muted);min-width:32px;">${rock.progress}%</span>
+                </div>
+                ${checklist.length > 0 ? `<div style="margin-top:8px;padding-top:6px;border-top:1px solid rgba(95,166,201,0.1);">
+                    ${checklist.map((step, idx) => `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;">
+                        <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleRockChecklist(${rock.id},${idx});renderMeetingRocks();" style="cursor:pointer;">
+                        <span style="text-decoration:${step.completed ? 'line-through' : 'none'};color:${step.completed ? 'var(--text-muted)' : 'var(--text-light)'};">${escapeHtml(step.text)}</span>
+                    </div>`).join('')}
+                    <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">${checkDone}/${checklist.length} steps done</div>
+                </div>` : ''}
             </div>`;
         });
-        document.getElementById('meetingRocks').innerHTML = html || '<div class="meeting-item">No rocks</div>';
+        document.getElementById('meetingRocks').innerHTML = html || '<div class="meeting-item">No active rocks 🎉</div>';
     }
 
     function renderMeetingTodos() {
         const todos = JSON.parse(localStorage.getItem('todos') || '[]').filter(t => !t.archivedDate);
+        const incomplete = todos.filter(t => !t.completed);
+        const completed = todos.filter(t => t.completed);
         let html = '';
-        todos.forEach(todo => {
-            const calLink = todo.dueDate ? ` <a href="#" onclick="calendarFromTodo(${todo.id}); return false;" style="color: var(--teal-accent); text-decoration: none; cursor: pointer;">📅</a>` : '';
-            html += `<div class="meeting-item"><div class="meeting-item-title">${escapeHtml(todo.title)}</div><div class="meeting-item-meta">${todo.assignee} • ${todo.completed ? '✓' : '○'}${todo.dueDate ? ' • ' + todo.dueDate : ''}${calLink}</div></div>`;
+        incomplete.forEach(todo => {
+            const priority = getPriorityColor(todo.priority || 'medium');
+            const calLink = todo.dueDate ? ` <a href="#" onclick="calendarFromTodo(${todo.id}); return false;" style="color:var(--teal-accent);text-decoration:none;cursor:pointer;">📅</a>` : '';
+            html += `<div class="meeting-item" style="text-align:left;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div style="flex:1;">
+                        <div class="meeting-item-title">${escapeHtml(todo.title)}</div>
+                        ${todo.description ? `<div style="font-size:11px;color:var(--text-muted);margin:3px 0;">${escapeHtml(todo.description)}</div>` : ''}
+                        <div class="meeting-item-meta">${todo.assignee}${todo.dueDate ? ' • ' + todo.dueDate : ''}${calLink} <span style="background:${priority.bg};color:${priority.text};padding:1px 6px;border-radius:3px;font-size:9px;font-weight:700;margin-left:4px;">${priority.label}</span></div>
+                    </div>
+                    <div style="display:flex;gap:4px;margin-left:8px;flex-shrink:0;">
+                        <button onclick="completeTodo(${todo.id});renderMeetingTodos();" style="padding:4px 8px;background:var(--success);color:white;border:none;border-radius:4px;cursor:pointer;font-size:10px;font-weight:600;">✓</button>
+                        <button onclick="deleteTodo(${todo.id});renderMeetingTodos();" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">×</button>
+                    </div>
+                </div>
+            </div>`;
         });
+        if (completed.length > 0) {
+            html += `<div style="margin-top:8px;padding-top:8px;border-top:1px solid rgba(95,166,201,0.15);">
+                <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;font-weight:600;margin-bottom:4px;">Completed (${completed.length})</div>
+                ${completed.map(t => `<div style="font-size:11px;color:var(--text-muted);padding:3px 0;display:flex;justify-content:space-between;align-items:center;">
+                    <span style="text-decoration:line-through;">✓ ${escapeHtml(t.title)} — ${t.assignee}</span>
+                    <button onclick="uncompleteTodo(${t.id});renderMeetingTodos();" style="background:none;border:none;color:var(--teal-accent);cursor:pointer;font-size:10px;opacity:0.6;">↩</button>
+                </div>`).join('')}
+            </div>`;
+        }
         document.getElementById('meetingTodos').innerHTML = html || '<div class="meeting-item">No to-dos</div>';
     }
 
@@ -2423,7 +2461,35 @@
         const open = ids.filter(i => i.status !== 'Solved');
         let html = '';
         open.forEach(item => {
-            html += `<div class="meeting-item"><div class="meeting-item-title">${escapeHtml(item.title)}</div><div class="meeting-item-meta">${item.assignee} • ${item.status}</div></div>`;
+            const checklist = item.checklist || [];
+            const checkDone = checklist.filter(c => c.completed).length;
+            html += `<div class="meeting-item" style="text-align:left;">
+                <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+                    <div style="flex:1;">
+                        <div class="meeting-item-title">${escapeHtml(item.title)}</div>
+                        ${item.description ? `<div style="font-size:11px;color:var(--text-muted);margin:3px 0;">${escapeHtml(item.description)}</div>` : ''}
+                        <div class="meeting-item-meta">${item.assignee}${item.dueDate ? ' • ' + item.dueDate : ''}${checklist.length > 0 ? ` • ${checkDone}/${checklist.length} steps` : ''}</div>
+                    </div>
+                    <div style="display:flex;gap:4px;margin-left:8px;flex-shrink:0;align-items:center;">
+                        <select onchange="updateIds(${item.id}, this.value);renderMeetingIds();" style="padding:3px 6px;border-radius:4px;border:1px solid rgba(95,166,201,0.3);background:var(--card-bg);color:var(--text-light);cursor:pointer;font-size:10px;">
+                            <option value="Identified" ${item.status === 'Identified' ? 'selected' : ''}>Identified</option>
+                            <option value="Discussing" ${item.status === 'Discussing' ? 'selected' : ''}>Discussing</option>
+                            <option value="Solved" ${item.status === 'Solved' ? 'selected' : ''}>Solved</option>
+                        </select>
+                        <button onclick="deleteIds(${item.id});renderMeetingIds();" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:14px;opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">×</button>
+                    </div>
+                </div>
+                ${checklist.length > 0 ? `<div style="margin-top:6px;padding-top:6px;border-top:1px solid rgba(95,166,201,0.1);">
+                    ${checklist.map((step, idx) => `<div style="display:flex;align-items:center;gap:6px;padding:3px 0;font-size:11px;">
+                        <input type="checkbox" ${step.completed ? 'checked' : ''} onchange="toggleIdsChecklist(${item.id},${idx});renderMeetingIds();" style="cursor:pointer;">
+                        <span style="text-decoration:${step.completed ? 'line-through' : 'none'};color:${step.completed ? 'var(--text-muted)' : 'var(--text-light)'};">${escapeHtml(step.text)}</span>
+                    </div>`).join('')}
+                </div>` : ''}
+                <div style="display:flex;gap:4px;margin-top:6px;">
+                    <input type="text" id="mtgIdsStep_${item.id}" placeholder="Add step..." class="meeting-form-input" style="flex:1;padding:4px 8px;font-size:10px;" onkeydown="if(event.key==='Enter'){addIdsChecklist(${item.id},'mtgIdsStep_');renderMeetingIds();}">
+                    <button onclick="addIdsChecklist(${item.id},'mtgIdsStep_');renderMeetingIds();" style="padding:4px 8px;background:var(--teal-accent);color:white;border:none;border-radius:4px;cursor:pointer;font-size:10px;font-weight:600;">+</button>
+                </div>
+            </div>`;
         });
         document.getElementById('meetingIds').innerHTML = html || '<div class="meeting-item">No open IDS items 🎉</div>';
     }
