@@ -2301,29 +2301,163 @@
             const checkDone = checklist.filter(c => c.completed).length;
             const checkTotal = checklist.length;
             html += `<div class="meeting-item" style="padding: 14px;">
-                <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                    <div>
-                        <div class="meeting-item-title" style="font-size: 14px;">${escapeHtml(rock.title)}</div>
-                        <div class="meeting-item-meta">${rock.assignee} • ${rock.progress}% • <span style="color: ${statusColor}; font-weight: 700;">${statusLabel}</span></div>
+                <!-- Title / Edit Toggle -->
+                <div id="mtgRock-view-${rock.id}">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                        <div style="flex: 1;">
+                            <div class="meeting-item-title" style="font-size: 14px;">${escapeHtml(rock.title)}</div>
+                            <div class="meeting-item-meta">${rock.assignee} • ${rock.progress}% • <span style="color: ${statusColor}; font-weight: 700;">${statusLabel}</span>
+                                ${checkTotal > 0 ? ` • <span style="color: var(--teal-accent); font-weight: 700;">${checkDone}/${checkTotal} steps</span>` : ''}
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 6px; margin-left: 10px;">
+                            <button onclick="mtgStartRockEdit(${rock.id})" style="padding:4px 10px; background:rgba(95,166,201,0.2); border:1px solid var(--teal-accent); color:var(--teal-accent); border-radius:5px; cursor:pointer; font-size:10px; font-weight:600;">✏️</button>
+                            <button onclick="mtgDeleteRock(${rock.id})" style="padding:4px 10px; background:rgba(255,107,107,0.2); border:1px solid var(--danger); color:var(--danger); border-radius:5px; cursor:pointer; font-size:10px; font-weight:600;">×</button>
+                        </div>
                     </div>
-                    ${checkTotal > 0 ? `<div style="font-size: 11px; color: var(--teal-accent); font-weight: 700; white-space: nowrap;">${checkDone}/${checkTotal} steps</div>` : ''}
                 </div>
-                <div style="height: 6px; background: rgba(95, 166, 201, 0.2); border-radius: 3px; overflow: hidden; margin-top: 8px;">
-                    <div style="height: 100%; background: linear-gradient(90deg, var(--success), var(--warning), var(--danger)); width: ${timelinePercent}%;"></div>
+                <div id="mtgRock-edit-${rock.id}" style="display:none;">
+                    <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                        <input type="text" id="mtgRockEditTitle_${rock.id}" value="${escapeHtml(rock.title)}" class="theme-input-bg" style="padding:6px 10px; border:1px solid rgba(95,166,201,0.3); border-radius:6px; color:var(--text-light); font-size:12px; flex:1; min-width:120px;">
+                        <select id="mtgRockEditAssignee_${rock.id}" class="theme-input-bg" style="padding:5px 8px; border:1px solid rgba(95,166,201,0.3); border-radius:6px; color:var(--text-light); font-size:11px;">
+                            ${['Zac','Les','Krystie','Sammy'].map(n => `<option ${rock.assignee === n ? 'selected' : ''}>${n}</option>`).join('')}
+                        </select>
+                        <button onclick="mtgSaveRockEdit(${rock.id})" style="padding:5px 12px; background:var(--success); color:white; border:none; border-radius:5px; cursor:pointer; font-weight:600; font-size:10px;">Save</button>
+                        <button onclick="mtgCancelRockEdit(${rock.id})" style="padding:5px 12px; background:rgba(255,107,107,0.2); color:var(--danger); border:1px solid var(--danger); border-radius:5px; cursor:pointer; font-weight:600; font-size:10px;">Cancel</button>
+                    </div>
                 </div>
+
+                <!-- Timeline bar -->
+                <div style="margin-top: 10px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                        <div style="font-size: 10px; color: var(--text-muted); font-weight: 600;">Timeline: ${(100 - timelinePercent).toFixed(0)}%</div>
+                        <div style="font-size: 10px; font-weight: 700; color: ${statusColor};">${statusLabel}</div>
+                    </div>
+                    <div style="height: 6px; background: rgba(95, 166, 201, 0.2); border-radius: 3px; overflow: hidden;">
+                        <div style="height: 100%; background: linear-gradient(90deg, var(--success), var(--warning), var(--danger)); width: ${timelinePercent}%;"></div>
+                    </div>
+                </div>
+
+                <!-- Progress slider -->
+                <div style="margin-top: 8px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-size: 10px; color: var(--text-muted);">Goal Progress</div>
+                        <div style="font-size: 10px; color: var(--text-muted);">${rock.progress}%</div>
+                    </div>
+                    <input type="range" min="0" max="100" value="${rock.progress}" onchange="mtgUpdateRock(${rock.id}, this.value)" style="width: 100%; cursor: pointer; margin-top: 4px;">
+                </div>
+
+                <!-- Steps checklist -->
                 ${checklist.length > 0 ? `
                     <div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(95,166,201,0.1);">
+                        <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 6px;">Steps</div>
                         ${checklist.map((item, idx) => `
-                            <div style="display: flex; align-items: center; gap: 8px; padding: 4px 0; font-size: 12px;">
-                                <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="toggleRockChecklist(${rock.id}, ${idx}); renderMeetingRocks();" style="cursor: pointer;">
+                            <div id="mtgStep-view-${rock.id}-${idx}" style="display:flex; align-items:center; gap:8px; padding: 4px 0; font-size: 12px;">
+                                <input type="checkbox" ${item.completed ? 'checked' : ''} onchange="mtgToggleRockChecklist(${rock.id}, ${idx})" style="cursor: pointer;">
                                 <span style="color: ${item.completed ? 'var(--text-muted)' : 'var(--text-light)'}; text-decoration: ${item.completed ? 'line-through' : 'none'}; flex: 1;">${escapeHtml(item.text)}</span>
+                                <button onclick="mtgStartStepEdit(${rock.id}, ${idx})" style="background:none; border:none; color:var(--teal-accent); cursor:pointer; font-size:11px; padding:2px 4px; opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">✏️</button>
+                                <button onclick="mtgDeleteRockStep(${rock.id}, ${idx})" style="background:none; border:none; color:var(--danger); cursor:pointer; font-size:13px; padding:0; opacity:0.6;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6">×</button>
+                            </div>
+                            <div id="mtgStep-edit-${rock.id}-${idx}" style="display:none; margin:4px 0 4px 28px;">
+                                <div style="display:flex; gap:6px; align-items:center;">
+                                    <input type="text" id="mtgStepEditInput_${rock.id}_${idx}" value="${escapeHtml(item.text)}" class="theme-input-bg" style="padding:5px 8px; border:1px solid rgba(95,166,201,0.3); border-radius:4px; color:var(--text-light); flex:1; font-size:11px;">
+                                    <button onclick="mtgSaveStepEdit(${rock.id}, ${idx})" style="padding:4px 8px; background:var(--success); color:white; border:none; border-radius:4px; cursor:pointer; font-weight:600; font-size:10px;">Save</button>
+                                    <button onclick="mtgCancelStepEdit(${rock.id}, ${idx})" style="padding:4px 8px; background:rgba(255,107,107,0.2); color:var(--danger); border:1px solid var(--danger); border-radius:4px; cursor:pointer; font-weight:600; font-size:10px;">Cancel</button>
+                                </div>
                             </div>
                         `).join('')}
                     </div>
                 ` : ''}
+
+                <!-- Add step input -->
+                <div style="display: flex; gap: 6px; margin-top: 8px;">
+                    <input type="text" id="mtgChecklistInput_${rock.id}" placeholder="Add step..." class="theme-input-bg" style="padding: 5px 8px; border: 1px solid rgba(95, 166, 201, 0.3); border-radius: 4px; color: var(--text-light); flex: 1; font-size: 11px;" onkeydown="if(event.key==='Enter')mtgAddRockChecklist(${rock.id})">
+                    <button onclick="mtgAddRockChecklist(${rock.id})" style="padding: 5px 10px; background: var(--teal-accent); color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: 600; font-size: 10px;">Add</button>
+                </div>
             </div>`;
         });
         document.getElementById('meetingRocks').innerHTML = html || '<div class="meeting-item">No rocks</div>';
+    }
+
+    // Meeting-context rock helpers (data ops → re-render meeting view)
+    function mtgUpdateRock(id, progress) {
+        let rocks = JSON.parse(localStorage.getItem('rocks') || '[]');
+        rocks = rocks.map(r => r.id === id ? {...r, progress: parseInt(progress)} : r);
+        localStorage.setItem('rocks', JSON.stringify(rocks));
+        pushToSheets('rocks');
+        renderMeetingRocks();
+        renderDashboard();
+    }
+    function mtgDeleteRock(id) {
+        if (!confirm('Delete this rock?')) return;
+        let rocks = JSON.parse(localStorage.getItem('rocks') || '[]');
+        rocks = rocks.filter(r => r.id !== id);
+        localStorage.setItem('rocks', JSON.stringify(rocks));
+        pushToSheets('rocks');
+        renderMeetingRocks();
+        renderDashboard();
+    }
+    function mtgStartRockEdit(id) {
+        document.getElementById(`mtgRock-view-${id}`).style.display = 'none';
+        document.getElementById(`mtgRock-edit-${id}`).style.display = 'block';
+    }
+    function mtgCancelRockEdit(id) {
+        document.getElementById(`mtgRock-view-${id}`).style.display = '';
+        document.getElementById(`mtgRock-edit-${id}`).style.display = 'none';
+    }
+    function mtgSaveRockEdit(id) {
+        const title = document.getElementById(`mtgRockEditTitle_${id}`).value.trim();
+        if (!title) return;
+        const assignee = document.getElementById(`mtgRockEditAssignee_${id}`).value;
+        let rocks = JSON.parse(localStorage.getItem('rocks') || '[]');
+        rocks = rocks.map(r => r.id === id ? {...r, title, assignee} : r);
+        localStorage.setItem('rocks', JSON.stringify(rocks));
+        pushToSheets('rocks');
+        renderMeetingRocks();
+        renderDashboard();
+    }
+    function mtgToggleRockChecklist(rockId, idx) {
+        let rocks = JSON.parse(localStorage.getItem('rocks') || '[]');
+        rocks = rocks.map(r => { if (r.id === rockId && r.checklist && r.checklist[idx]) { r.checklist[idx].completed = !r.checklist[idx].completed; } return r; });
+        localStorage.setItem('rocks', JSON.stringify(rocks));
+        pushToSheets('rocks');
+        renderMeetingRocks();
+    }
+    function mtgAddRockChecklist(rockId) {
+        const input = document.getElementById(`mtgChecklistInput_${rockId}`);
+        const text = input.value.trim();
+        if (!text) return;
+        let rocks = JSON.parse(localStorage.getItem('rocks') || '[]');
+        rocks = rocks.map(r => { if (r.id === rockId) { if (!r.checklist) r.checklist = []; r.checklist.push({ text, completed: false }); } return r; });
+        localStorage.setItem('rocks', JSON.stringify(rocks));
+        pushToSheets('rocks');
+        renderMeetingRocks();
+    }
+    function mtgStartStepEdit(rockId, idx) {
+        document.getElementById(`mtgStep-view-${rockId}-${idx}`).style.display = 'none';
+        document.getElementById(`mtgStep-edit-${rockId}-${idx}`).style.display = 'block';
+        document.getElementById(`mtgStepEditInput_${rockId}_${idx}`).focus();
+    }
+    function mtgCancelStepEdit(rockId, idx) {
+        document.getElementById(`mtgStep-view-${rockId}-${idx}`).style.display = '';
+        document.getElementById(`mtgStep-edit-${rockId}-${idx}`).style.display = 'none';
+    }
+    function mtgSaveStepEdit(rockId, idx) {
+        const text = document.getElementById(`mtgStepEditInput_${rockId}_${idx}`).value.trim();
+        if (!text) return;
+        let rocks = JSON.parse(localStorage.getItem('rocks') || '[]');
+        rocks = rocks.map(r => { if (r.id === rockId && r.checklist && r.checklist[idx]) { r.checklist[idx].text = text; } return r; });
+        localStorage.setItem('rocks', JSON.stringify(rocks));
+        pushToSheets('rocks');
+        renderMeetingRocks();
+    }
+    function mtgDeleteRockStep(rockId, idx) {
+        if (!confirm('Delete this step?')) return;
+        let rocks = JSON.parse(localStorage.getItem('rocks') || '[]');
+        rocks = rocks.map(r => { if (r.id === rockId && r.checklist) { r.checklist.splice(idx, 1); } return r; });
+        localStorage.setItem('rocks', JSON.stringify(rocks));
+        pushToSheets('rocks');
+        renderMeetingRocks();
     }
 
     function renderMeetingTodos() {
@@ -2334,17 +2468,44 @@
         if (incomplete.length > 0) {
             incomplete.forEach(todo => {
                 const priority = getPriorityColor(todo.priority || 'medium');
+                const safeTitle = escapeHtml(todo.title);
                 html += `<div class="meeting-item" style="padding: 14px;">
-                    <div style="display: flex; justify-content: space-between; align-items: flex-start;">
-                        <div style="flex: 1;">
-                            <div class="meeting-item-title" style="font-size: 14px;">${escapeHtml(todo.title)}</div>
-                            ${todo.description ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">${escapeHtml(todo.description)}</div>` : ''}
-                            <div class="meeting-item-meta" style="margin-top: 6px;">
-                                ${todo.assignee}${todo.dueDate ? ' • 📅 ' + todo.dueDate : ''}
-                                <span style="background: ${priority.bg}; color: ${priority.text}; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 8px;">${priority.label}</span>
+                    <!-- View mode -->
+                    <div id="mtgTodo-view-${todo.id}">
+                        <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+                            <div style="flex: 1;">
+                                <div class="meeting-item-title" style="font-size: 14px;">${safeTitle}</div>
+                                ${todo.description ? `<div style="font-size: 11px; color: var(--text-muted); margin-top: 4px; line-height: 1.4;">${escapeHtml(todo.description)}</div>` : ''}
+                                <div class="meeting-item-meta" style="margin-top: 6px;">
+                                    ${todo.assignee}${todo.dueDate ? ' • 📅 ' + todo.dueDate : ''}
+                                    <span style="background: ${priority.bg}; color: ${priority.text}; padding: 2px 8px; border-radius: 4px; font-size: 10px; font-weight: 700; margin-left: 8px;">${priority.label}</span>
+                                </div>
+                            </div>
+                            <div style="display: flex; gap: 6px; margin-left: 10px; flex-shrink: 0;">
+                                <button onclick="mtgStartTodoEdit(${todo.id})" style="padding:4px 10px; background:rgba(95,166,201,0.2); border:1px solid var(--teal-accent); color:var(--teal-accent); border-radius:5px; cursor:pointer; font-size:10px; font-weight:600;">✏️</button>
+                                <button onclick="mtgCompleteTodo(${todo.id})" style="padding:4px 10px; background:rgba(76,175,80,0.2); border:1px solid var(--success); color:var(--success); border-radius:5px; cursor:pointer; font-size:10px; font-weight:700;">✓</button>
+                                <button onclick="mtgDeleteTodo(${todo.id})" style="padding:4px 10px; background:rgba(255,107,107,0.2); border:1px solid var(--danger); color:var(--danger); border-radius:5px; cursor:pointer; font-size:10px; font-weight:600;">×</button>
                             </div>
                         </div>
-                        <button onclick="completeTodo(${todo.id}); renderMeetingTodos();" style="padding: 6px 12px; background: rgba(76,175,80,0.2); border: 1px solid var(--success); color: var(--success); border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 700; white-space: nowrap; margin-left: 12px;">✓ Done</button>
+                    </div>
+                    <!-- Edit mode -->
+                    <div id="mtgTodo-edit-${todo.id}" style="display:none;">
+                        <div style="display:flex; flex-direction:column; gap:8px;">
+                            <input type="text" id="mtgTodoEditTitle_${todo.id}" value="${safeTitle}" class="theme-input-bg" style="padding:6px 10px; border:1px solid rgba(95,166,201,0.3); border-radius:6px; color:var(--text-light); font-size:12px; width:100%;">
+                            <div style="display:flex; gap:6px; flex-wrap:wrap;">
+                                <select id="mtgTodoEditAssignee_${todo.id}" class="theme-input-bg" style="padding:5px 8px; border:1px solid rgba(95,166,201,0.3); border-radius:6px; color:var(--text-light); font-size:11px;">
+                                    ${['Zac','Les','Krystie','Sammy'].map(n => `<option ${todo.assignee === n ? 'selected' : ''}>${n}</option>`).join('')}
+                                </select>
+                                <input type="date" id="mtgTodoEditDueDate_${todo.id}" value="${todo.dueDate || ''}" class="theme-input-bg" style="padding:5px 8px; border:1px solid rgba(95,166,201,0.3); border-radius:6px; color:var(--text-light); font-size:11px;">
+                                <select id="mtgTodoEditPriority_${todo.id}" class="theme-input-bg" style="padding:5px 8px; border:1px solid rgba(95,166,201,0.3); border-radius:6px; color:var(--text-light); font-size:11px;">
+                                    <option value="high" ${(todo.priority||'medium')==='high'?'selected':''}>🔴 High</option>
+                                    <option value="medium" ${(todo.priority||'medium')==='medium'?'selected':''}>🟡 Medium</option>
+                                    <option value="low" ${(todo.priority||'medium')==='low'?'selected':''}>🟢 Low</option>
+                                </select>
+                                <button onclick="mtgSaveTodoEdit(${todo.id})" style="padding:5px 12px; background:var(--success); color:white; border:none; border-radius:5px; cursor:pointer; font-weight:600; font-size:10px;">Save</button>
+                                <button onclick="mtgCancelTodoEdit(${todo.id})" style="padding:5px 12px; background:rgba(255,107,107,0.2); color:var(--danger); border:1px solid var(--danger); border-radius:5px; cursor:pointer; font-weight:600; font-size:10px;">Cancel</button>
+                            </div>
+                        </div>
                     </div>
                 </div>`;
             });
@@ -2352,10 +2513,61 @@
         if (completed.length > 0) {
             html += `<div style="margin-top: 10px; padding-top: 8px; border-top: 1px solid rgba(95,166,201,0.15);">
                 <div style="font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; font-weight: 600; margin-bottom: 8px;">✓ Completed (${completed.length})</div>
-                ${completed.map(todo => `<div style="font-size: 12px; color: var(--text-muted); padding: 4px 0; text-decoration: line-through;">${escapeHtml(todo.title)} — ${todo.assignee}</div>`).join('')}
+                ${completed.map(todo => `<div style="display: flex; justify-content: space-between; align-items: center; padding: 4px 0;">
+                    <span style="font-size: 12px; color: var(--text-muted); text-decoration: line-through; flex: 1;">${escapeHtml(todo.title)} — ${todo.assignee}</span>
+                    <button onclick="mtgUncompleteTodo(${todo.id})" style="padding:3px 8px; background:rgba(76,175,80,0.15); border:1px solid var(--success); color:var(--success); border-radius:4px; cursor:pointer; font-size:9px; font-weight:600; margin-left:8px;">↩</button>
+                </div>`).join('')}
             </div>`;
         }
         document.getElementById('meetingTodos').innerHTML = html || '<div class="meeting-item">No to-dos</div>';
+    }
+
+    // Meeting-context todo helpers
+    function mtgCompleteTodo(id) {
+        let todos = JSON.parse(localStorage.getItem('todos') || '[]');
+        todos = todos.map(t => t.id === id ? {...t, completed: true, completedDate: Date.now()} : t);
+        localStorage.setItem('todos', JSON.stringify(todos));
+        pushToSheets('todos');
+        renderMeetingTodos();
+        renderDashboard();
+    }
+    function mtgUncompleteTodo(id) {
+        let todos = JSON.parse(localStorage.getItem('todos') || '[]');
+        todos = todos.map(t => t.id === id ? {...t, completed: false, completedDate: null} : t);
+        localStorage.setItem('todos', JSON.stringify(todos));
+        pushToSheets('todos');
+        renderMeetingTodos();
+        renderDashboard();
+    }
+    function mtgDeleteTodo(id) {
+        if (!confirm('Delete this to-do?')) return;
+        let todos = JSON.parse(localStorage.getItem('todos') || '[]');
+        todos = todos.filter(t => t.id !== id);
+        localStorage.setItem('todos', JSON.stringify(todos));
+        pushToSheets('todos');
+        renderMeetingTodos();
+        renderDashboard();
+    }
+    function mtgStartTodoEdit(id) {
+        document.getElementById(`mtgTodo-view-${id}`).style.display = 'none';
+        document.getElementById(`mtgTodo-edit-${id}`).style.display = 'block';
+    }
+    function mtgCancelTodoEdit(id) {
+        document.getElementById(`mtgTodo-view-${id}`).style.display = '';
+        document.getElementById(`mtgTodo-edit-${id}`).style.display = 'none';
+    }
+    function mtgSaveTodoEdit(id) {
+        const title = document.getElementById(`mtgTodoEditTitle_${id}`).value.trim();
+        if (!title) return;
+        const assignee = document.getElementById(`mtgTodoEditAssignee_${id}`).value;
+        const dueDate = document.getElementById(`mtgTodoEditDueDate_${id}`).value;
+        const priority = document.getElementById(`mtgTodoEditPriority_${id}`).value;
+        let todos = JSON.parse(localStorage.getItem('todos') || '[]');
+        todos = todos.map(t => t.id === id ? {...t, title, assignee, dueDate, priority} : t);
+        localStorage.setItem('todos', JSON.stringify(todos));
+        pushToSheets('todos');
+        renderMeetingTodos();
+        renderDashboard();
     }
 
     function renderMeetingIds() {
